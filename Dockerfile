@@ -33,5 +33,10 @@ RUN curl -LO https://github.com/dgruber/qsub/raw/master/builds/qsub_linux && \
 ADD ./kubeyard-entrypoint.sh /usr/local/bin/kubeyard-entrypoint.sh
 RUN chmod +x /usr/local/bin/kubeyard-entrypoint.sh
 
+# Kubernetes secret containing `credentials` file for AWS
+ENV KUBEYARD_S3_CREDENTIALS_SECRET shared-s3-credentials
+# Bucket to try to mount as /s3
+ENV KUBEYARD_S3_BUCKET vg-k8s
+
 ENTRYPOINT ["/usr/local/bin/kubeyard-entrypoint.sh"]
 
