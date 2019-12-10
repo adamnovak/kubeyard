@@ -15,6 +15,7 @@ To connect to your pod and get an interactive shell session, you can run:
 ```
 ./connect.sh
 ```
+If you see an error like `error: unable to upgrade connection: container not found ("main")`, that means the pod is still starting up. Wait a moment for it to be ready and try again.
 
 Once in the pod, the bucket you specified is mounted at `/s3`. To inspect it, you can run:
 ```
