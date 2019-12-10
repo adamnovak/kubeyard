@@ -6,8 +6,11 @@ IMAGE=quay.io/adamnovak/kubeyard:latest
 DISK="50Gi"
 MEMORY="4Gi"
 CPU="1"
+
+# Pull Kubeyard environment to forward
 SERVICE_ACCOUNT="${KUBEYARD_SERVICE_ACCOUNT}"
 BUCKET="${KUBEYARD_S3_BUCKET}"
+SECRET="${KUBEYARD_S3_CREDENTIALS_SECRET}"
 
 # Good option parsing. See <https://stackoverflow.com/a/28466267>
 while getopts "i:d:m:c:" ARG; do
@@ -118,6 +121,8 @@ spec:
           value: ${SERVICE_ACCOUNT}
         - name: KUBEYARD_S3_BUCKET
           value: ${BUCKET}
+        - name: KUBEYARD_S3_CREDENTIALS_SECRET
+          value: ${SECRET}
       restartPolicy: Never
       serviceAccountName: ${SERVICE_ACCOUNT}
   backoffLimit: 0
