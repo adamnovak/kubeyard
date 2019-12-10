@@ -26,19 +26,26 @@ RUN curl -LO https://storage.googleapis.com/kubernetes-release/release/v1.16.0/b
   mv ./kubectl /usr/local/bin/kubectl
   
 # Add a script which will set up an s3fs mount
-ADD ./kubeyard-entrypoint.sh /usr/local/bin/kubeyard-entrypoint.sh
+ADD ./src/kubeyard-entrypoint.sh /usr/local/bin/kubeyard-entrypoint.sh
 RUN chmod +x /usr/local/bin/kubeyard-entrypoint.sh
 
 # Add our own hacky Kubernetes qsub that can run more of ourselves with our S3 mount
-ADD ./kubeyard-qsub.sh /usr/local/bin/qsub
+ADD ./src/kubeyard-qsub.sh /usr/local/bin/qsub
 RUN chmod +x /usr/local/bin/qsub
 
-# Kubernetes secret containing `credentials` file for AWS
-ENV KUBEYARD_S3_CREDENTIALS_SECRET shared-s3-credentials
+# Container will expect these environment variables:
+#
+# Service account to run stuff as
+# KUBEYARD_SERVICE_ACCOUNT="vg-svc"
+#
 # Bucket to try to mount as /s3
-ENV KUBEYARD_S3_BUCKET vg-k8s
-# Service account to runs tuff as
-ENV KUBEYARD_SERVICE_ACCOUNT vg-svc
+# KUBEYARD_S3_BUCKET="vg-data"
+#
+# Kubernetes secret containing `credentials` file for AWS
+# KUBEYARD_S3_CREDENTIALS_SECRET="shared-s3-credentials"
+#
+# Name of the user who should own all the pods
+# KUBEYARD_OWNING_USER="$(whoami)"
 
 ENTRYPOINT ["/usr/local/bin/kubeyard-entrypoint.sh"]
 

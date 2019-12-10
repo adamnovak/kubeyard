@@ -10,6 +10,7 @@ DISK="50Gi"
 NAME_PREFIX="job"
 
 # Set defaults for our environment
+# These are mostly for local testing of qsub outside a proper interactive pod.
 KUBEYARD_SERVICE_ACCOUNT="${KUBEYARD_SERVICE_ACCOUNT:-vg-svc}"
 KUBEYARD_S3_BUCKET="${KUBEYARD_S3_BUCKET:-vg-data}"
 KUBEYARD_S3_CREDENTIALS_SECRET="${KUBEYARD_S3_CREDENTIALS_SECRET:-shared-s3-credentials}"
