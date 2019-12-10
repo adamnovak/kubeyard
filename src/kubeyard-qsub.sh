@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # kubeyard-qsub.sh: fake qsub that just runs kubectl to submit a job
-set -ex
+set -e
 
 # Set some defaults
 IMAGE=quay.io/adamnovak/kubeyard:latest
@@ -24,7 +24,7 @@ usage() {
     printf "\tRun the given script on Kubernetes. If script is missing or \"-\", read \n"
     printf "\tscript from standard input. Outputs the name of the submitted job.\n"
     printf "\nPOSIX Options:\n\n"
-    printf "\t-N NAME\tUse the given name for the job\n"
+    printf "\t-N NAME\tUse the given alphanumeric name in the job name\n"
     printf "\nExtra Options:\n\n"
     printf "\t-I IMAGE\tUse the given Docker image. Default: ${IMAGE}\n"
     printf "\t-R MEM\t\tUse the given RAM limit. Default: ${MEMORY}\n"
@@ -33,7 +33,7 @@ usage() {
     exit 1
 }
 
-while getopts "N:I:R:P:D:" o; do
+while getopts "N:I:R:P:D:h" o; do
     case "${o}" in
         N)
             # Make sure name is lower-case
@@ -70,7 +70,7 @@ fi
 JOB_NAME="${KUBEYARD_OWNING_USER}-${NAME_PREFIX}-${RANDOM}-${RANDOM}-${RANDOM}"
 
 # Delete the job if it exists
-kubectl delete job ${JOB_NAME} 2>/dev/null || true
+kubectl delete job ${JOB_NAME} 2>/dev/null >/dev/null || true
 # Then make it
 kubectl apply -f - >/dev/null <<EOF
 apiVersion: batch/v1
@@ -97,6 +97,7 @@ $(cat "${SCRIPT}" | sed 's/^/          /')
             cpu: "${CPU}"
             memory: "${MEMORY}"
             ephemeral-storage: "${DISK}"
+        # Needs to be privileged to mount S3 with FUSE
         securityContext:
           privileged: true
           capabilities:

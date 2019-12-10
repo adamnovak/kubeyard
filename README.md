@@ -1,70 +1,42 @@
 # kubeyard: Courtyard for Kubernetes
 
-To make a pod to work in:
+This repository contains some scripts and describes an associated Docker image that let you use Kubernetes in a more HPC-like fashion, like the UCSC Genomics Insititute's Courtyard and Plaza shared machines.
+
+## Usage
+
+To make an interactive pod to work in:
 
 ```
-# Change this to the service account appropriate to your namespace
-export KUBEYARD_SERVICE_ACCOUNT=vg-svc
-# Change this to the S3 bucket you use
-export KUBEYARD_S3_BUCKET=vg-k8s
-# We also support a KUBEYARD_S3_CREDENTIALS_SECRET
-
-# Then run this
-kubectl apply -f - <<EOF
-apiVersion: v1
-kind: Pod
-metadata:
-  name: $(whoami)-kubeyard
-spec:
-  containers:
-  - name: main
-    imagePullPolicy: Always
-    image: quay.io/adamnovak/kubeyard:latest
-    # Keep the entrypoint from the image
-    args: ["sleep", "infinity"]
-    resources:
-      limits:
-        cpu: 1
-        memory: "2Gi"
-        ephemeral-storage: "2Gi"
-    securityContext:
-      privileged: true
-      capabilities:
-        add:
-        - SYS_ADMIN
-    env:
-    - name: KUBEYARD_SERVICE_ACCOUNT
-      value: ${KUBEYARD_SERVICE_ACCOUNT}
-    - name: KUBEYARD_S3_BUCKET
-      value: ${KUBEYARD_S3_BUCKET}
-    - name: KUBEYARD_OWNING_USER
-      value: $(whoami)
-  restartPolicy: Never
-  serviceAccountName: ${KUBEYARD_SERVICE_ACCOUNT}
-EOF
+# Specify Kubernetes service account, S3 bucket name, and S3 credentials secret name
+./start.sh -a vg-svc -b vg-k8s -s shared-s3-credentials
 ```
 
-To connect to your pod:
-
+To connect to your pod and get an interactive shell session, you can run:
 ```
-kubectl exec -ti $(whoami)-kubeyard -- /bin/bash
+./connect.sh
 ```
 
-Once in the pod, the bucket you specified is mounted at `/s3`:
-
+Once in the pod, the bucket you specified is mounted at `/s3`. To inspect it, you can run:
 ```
 ls /s3
 ```
 
-To run a command against that filesystem in another pod use `qsub`:
-
+Within thYour interactive pod has very low resource limits. To run a command as a job, use `qsub` on a script file or standard input from inside your pod. The job will also have the `/s3` mount available:
 ```
-qsub ls /s3
+echo "ls -lah /s3" | qsub -
 ```
+The `qsub` command can also take memory, disk, and CPU limits for the job as options.
 
-To tear down your pod:
-
+Finally, when you are done, you can tear down your interactive pod from your local machine:
 ```
 kubectl delete pod $(whoami)-kubeyard 
 ```
 
+## Environment Variables
+
+You can set the following environment variables to set defaults or overrides for some parameters:
+
+* `KUBEYARD_SERVICE_ACCOUNT`: Set the Kubernetes service account to use.
+* `KUBEYARD_S3_BUCKET`: Set the S3 bucket name to mount.
+* `KUBEYARD_S3_CREDENTIALS_SECRET`: Set the name of the Kubernetes secret containing the AWS `config` file to pull credentials from. The config file must contain exactly one line with `aws_access_key_id` in it, and exactly one line with `aws_secret_access_key` in it, in addition to being a valid `awscli` config file.
+* `KUBEYARD_OWNING_USER`: Override the user name prefixed onto job and pod names. The default is login name of the current user.
