@@ -7,6 +7,7 @@ DISK="50Gi"
 MEMORY="4Gi"
 CPU="1"
 SERVICE_ACCOUNT="${KUBEYARD_SERVICE_ACCOUNT}"
+BUCKET="${KUBEYARD_S3_BUCKET}"
 
 # Good option parsing. See <https://stackoverflow.com/a/28466267>
 while getopts "i:d:m:c:" ARG; do
@@ -112,6 +113,11 @@ spec:
           capabilities:
             add:
             - SYS_ADMIN
+        env:
+        - name: KUBEYARD_SERVICE_ACCOUNT
+          value: ${SERVICE_ACCOUNT}
+        - name: KUBEYARD_S3_BUCKET
+          value: ${BUCKET}
       restartPolicy: Never
       serviceAccountName: ${SERVICE_ACCOUNT}
   backoffLimit: 0
