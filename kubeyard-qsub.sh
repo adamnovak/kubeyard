@@ -1,99 +1,77 @@
 #!/usr/bin/env bash
 # kubeyard-qsub.sh: fake qsub that just runs kubectl to submit a job
+set -ex
 
 # Set some defaults
 IMAGE=quay.io/adamnovak/kubeyard:latest
-DISK="50Gi"
 MEMORY="4Gi"
 CPU="1"
+DISK="50Gi"
+NAME_PREFIX="job"
 
-# Pull Kubeyard environment to forward
-SERVICE_ACCOUNT="${KUBEYARD_SERVICE_ACCOUNT}"
-BUCKET="${KUBEYARD_S3_BUCKET}"
-SECRET="${KUBEYARD_S3_CREDENTIALS_SECRET}"
-REAL_USER="${KUBEYARD_OWNING_USER}"
+# Set defaults for our environment
+KUBEYARD_SERVICE_ACCOUNT="${KUBEYARD_SERVICE_ACCOUNT:-vg-svc}"
+KUBEYARD_S3_BUCKET="${KUBEYARD_S3_BUCKET:-vg-data}"
+KUBEYARD_S3_CREDENTIALS_SECRET="${KUBEYARD_S3_CREDENTIALS_SECRET:-shared-s3-credentials}"
+KUBEYARD_OWNING_USER="${KUBEYARD_OWNING_USER:-$(whoami)}"
 
-# Good option parsing. See <https://stackoverflow.com/a/28466267>
-while getopts "i:d:m:c:" ARG; do
-    case "${ARG}" in
-    i) IMAGE="${OPTARG}" ;;
-    d) DISK="${OPTARG}" ;;
-    m) MEMORY="${OPTARG}" ;;
-    m) CPU="${OPTARG}" ;;
-    -)
-        LONG_OPTARG="${OPTARG#*=}"
-        case "${OPTARG}" in
-        image=?*)
-            IMAGE="${LONG_OPTARG}" ;;
-        image)
-            eval "IMAGE=\"\$$OPTIND\""
-            if [ -z "${IMAGE}" ]; then
-                echo "No arg for --$OPTARG option" >&2
-                exit 2
-            fi
-            OPTIND=$((OPTIND+1)) ;;
-        disk=?*)
-            DISK="${LONG_OPTARG}" ;;
-        disk)
-            eval "DISK=\"\$$OPTIND\""
-            if [ -z "${DISK}" ]; then
-                echo "No arg for --$OPTARG option" >&2
-                exit 2
-            fi
-            OPTIND=$((OPTIND+1)) ;;
-        memory=?*)
-            MEMORY="${LONG_OPTARG}" ;;
-        memory)
-            eval "MEMORY=\"\$$OPTIND\""
-            if [ -z "${MEMORY}" ]; then
-                echo "No arg for --$OPTARG option" >&2
-                exit 2
-            fi
-            OPTIND=$((OPTIND+1)) ;;
-        cpu=?*)
-            CPU="${LONG_OPTARG}" ;;
-        cpu)
-            eval "CPU=\"\$$OPTIND\""
-            if [ -z "${CPU}" ]; then
-                echo "No arg for --$OPTARG option" >&2
-                exit 2
-            fi
-            OPTIND=$((OPTIND+1)) ;;
-        '')
-            break ;; # "--" terminates argument processing
-        * )
-            echo "Illegal option --$OPTARG" >&2; exit 2 ;;
-        esac ;;
-    \? ) exit 2 ;;  # getopts already reported the illegal option
-    esac
-done
-shift $((OPTIND-1)) # remove parsed options and args from $@ list
-
-JOB_NAME="${REAL_USER}-job-${RANDOM}-${RANDOM}-${RANDOM}"
-
-ARGS=( "$@" )
-# Collect all the arguments as comma-separated double-quoted strings.
-# TODO: We don't do any escaping of internal quotes! How do we yaml-escape in bash?
-CSV_ARGS=""
-for ARG in "${ARGS[@]}" ; do
-    CSV_ARGS="${CSV_ARGS},\"${ARG}\""
-done
-# Drop elading comma
-CSV_ARGS="${CSV_ARGS#,}"
-
-if [[ -z "${CSV_ARGS}" ]] ; then
-    echo "Please specify a command to run." >&2
-    exit 2
-fi
-
-function join_and_quote {
-    local IFS=",";
-    shift;
-    echo "$*";
+usage() {
+    # Print usage to stderr
+    exec 1>&2
+    printf "Usage: $0 [OPTIONS] [SCRIPT] \n"
+    printf "\nSummary:\n\n"
+    printf "\tRun the given script on Kubernetes. If script is missing or \"-\", read \n"
+    printf "\tscript from standard input. Outputs the name of the submitted job.\n"
+    printf "\nPOSIX Options:\n\n"
+    printf "\t-N NAME\tUse the given name for the job\n"
+    printf "\nExtra Options:\n\n"
+    printf "\t-I IMAGE\tUse the given Docker image. Default: ${IMAGE}\n"
+    printf "\t-R MEM\t\tUse the given RAM limit. Default: ${MEMORY}\n"
+    printf "\t-P CPU\t\tUse the given number of processors. Default: ${CPU}\n"
+    printf "\t-D DISK\t\tUse the given disk space limit. Default: ${DISK}\n"
+    exit 1
 }
 
-kubectl delete job ${JOB_NAME} 2>/dev/null
-kubectl apply -f - <<EOF
+while getopts "N:I:R:P:D:" o; do
+    case "${o}" in
+        N)
+            # Make sure name is lower-case
+            NAME_PREFIX="${OPTARG,,}"
+            ;;
+        I)
+            IMAGE="${OPTARG}"
+            ;;
+        R)
+            MEMORY="${OPTARG}"
+            ;;
+        P)
+            CPU="${OPTARG}"
+            ;;
+        D)
+            DISK="${OPTARG}"
+            ;;
+        *)
+            usage
+            ;;
+    esac
+done
+shift $((OPTIND-1))
+
+# Get the script they want us to run
+SCRIPT="${1}"
+if [[ -z "${SCRIPT}" || "${SCRIPT}" == "-" ]] ; then
+    # If it is standard in, read standard in
+    SCRIPT="/dev/stdin"
+fi
+# TODO: if not standard in, use filename in job name
+
+# Compute a probably unique name
+JOB_NAME="${KUBEYARD_OWNING_USER}-${NAME_PREFIX}-${RANDOM}-${RANDOM}-${RANDOM}"
+
+# Delete the job if it exists
+kubectl delete job ${JOB_NAME} 2>/dev/null || true
+# Then make it
+kubectl apply -f - >/dev/null <<EOF
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -106,7 +84,13 @@ spec:
       - name: main
         imagePullPolicy: Always
         image: ${IMAGE}
-        args: [${CSV_ARGS}]
+        # We indent the whole script and pass it
+        # in a bash command to our entrypoint
+        args:
+        - /bin/bash
+        - -c
+        - |
+$(cat "${SCRIPT}" | sed 's/^/          /')
         resources:
           limits:
             cpu: "${CPU}"
@@ -119,14 +103,17 @@ spec:
             - SYS_ADMIN
         env:
         - name: KUBEYARD_SERVICE_ACCOUNT
-          value: ${SERVICE_ACCOUNT}
+          value: "${KUBEYARD_SERVICE_ACCOUNT}"
         - name: KUBEYARD_S3_BUCKET
-          value: ${BUCKET}
+          value: "${KUBEYARD_S3_BUCKET}"
         - name: KUBEYARD_S3_CREDENTIALS_SECRET
-          value: ${SECRET}
+          value: "${KUBEYARD_S3_CREDENTIALS_SECRET}"
         - name: KUBEYARD_OWNING_USER
-          value: ${REAL_USER}
+          value: "${KUBEYARD_OWNING_USER}"
       restartPolicy: Never
-      serviceAccountName: ${SERVICE_ACCOUNT}
+      serviceAccountName: "${KUBEYARD_SERVICE_ACCOUNT}"
   backoffLimit: 0
 EOF
+
+# Report the job name
+echo "${JOB_NAME}"
