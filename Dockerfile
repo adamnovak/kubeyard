@@ -20,9 +20,6 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get -q -y update && \
         wget && \
     DEBIAN_FRONTEND=noninteractive apt-get clean
     
-# Make the system plausibly interactive
-RUN unminimize
-
 # Get kubectl so we can talk to Kubernetes and sniff out secrets
 RUN curl -LO https://storage.googleapis.com/kubernetes-release/release/v1.16.0/bin/linux/amd64/kubectl && \
   chmod +x ./kubectl && \
