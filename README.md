@@ -25,11 +25,11 @@ Within thYour interactive pod has very low resource limits. To run a command as 
 ```
 echo "ls -lah /s3" | qsub -
 ```
-The `qsub` command can also take memory, disk, and CPU limits for the job as options.
+The `qsub` command will print the name of the submitted job. The `qsub` command can also take memory, disk, and CPU limits for the job as options.
 
 Finally, when you are done, you can tear down your interactive pod from your local machine:
 ```
-kubectl delete pod $(whoami)-kubeyard 
+./stop.sh
 ```
 
 ## Environment Variables

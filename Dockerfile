@@ -19,11 +19,17 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get -q -y update && \
         curl \
         wget && \
     DEBIAN_FRONTEND=noninteractive apt-get clean
+    
+# Make the system plausibly interactive
+RUN unminimize
 
 # Get kubectl so we can talk to Kubernetes and sniff out secrets
 RUN curl -LO https://storage.googleapis.com/kubernetes-release/release/v1.16.0/bin/linux/amd64/kubectl && \
   chmod +x ./kubectl && \
   mv ./kubectl /usr/local/bin/kubectl
+  
+# Install its completions for everyone
+RUN echo ". <(/usr/local/bin/kubectl completion bash)" >>/etc/bash.bashrc
   
 # Add a script which will set up an s3fs mount
 ADD ./src/kubeyard-entrypoint.sh /usr/local/bin/kubeyard-entrypoint.sh
