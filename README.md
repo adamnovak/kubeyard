@@ -2,6 +2,16 @@
 
 This repository contains some scripts and describes an associated Docker image that let you use Kubernetes in a more HPC-like fashion, like the UCSC Genomics Insititute's Courtyard and Plaza shared machines.
 
+## Installation
+
+To install Kubeyard, check out this Git repository and go inside it:
+```
+git clone https://github.com/adamnovak/kubeyard.git
+cd kubeyard
+```
+
+You also need to make sure that you have `kubectl` installed and configured to talk to a Kubernetes cluster. Whatever Kubernetes cluster context is the current default for `kubectl` will be used.
+
 ## Usage
 
 To make an interactive pod to work in:
