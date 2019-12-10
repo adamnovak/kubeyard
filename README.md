@@ -37,6 +37,8 @@ spec:
       value: ${KUBEYARD_SERVICE_ACCOUNT}
     - name: KUBEYARD_S3_BUCKET
       value: ${KUBEYARD_S3_BUCKET}
+    - name: KUBEYARD_OWNING_USER
+      value: $(whoami)
   restartPolicy: Never
   serviceAccountName: ${KUBEYARD_SERVICE_ACCOUNT}
 EOF
@@ -57,7 +59,7 @@ ls /s3
 To run a command against that filesystem in another pod use `qsub`:
 
 ```
-qsub touch /s3/users/whoever/test.txt
+qsub ls /s3
 ```
 
 To tear down your pod:

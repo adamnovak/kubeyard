@@ -11,6 +11,7 @@ CPU="1"
 SERVICE_ACCOUNT="${KUBEYARD_SERVICE_ACCOUNT}"
 BUCKET="${KUBEYARD_S3_BUCKET}"
 SECRET="${KUBEYARD_S3_CREDENTIALS_SECRET}"
+REAL_USER="${KUBEYARD_OWNING_USER}"
 
 # Good option parsing. See <https://stackoverflow.com/a/28466267>
 while getopts "i:d:m:c:" ARG; do
@@ -68,7 +69,7 @@ while getopts "i:d:m:c:" ARG; do
 done
 shift $((OPTIND-1)) # remove parsed options and args from $@ list
 
-JOB_NAME="$(whoami)-job-${RANDOM}-${RANDOM}-${RANDOM}"
+JOB_NAME="${REAL_USER}-job-${RANDOM}-${RANDOM}-${RANDOM}"
 
 ARGS=( "$@" )
 # Collect all the arguments as comma-separated double-quoted strings.
@@ -123,6 +124,8 @@ spec:
           value: ${BUCKET}
         - name: KUBEYARD_S3_CREDENTIALS_SECRET
           value: ${SECRET}
+        - name: KUBEYARD_OWNING_USER
+          value: ${REAL_USER}
       restartPolicy: Never
       serviceAccountName: ${SERVICE_ACCOUNT}
   backoffLimit: 0
