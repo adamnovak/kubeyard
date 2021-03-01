@@ -1,6 +1,6 @@
 # This is the Dockerfile for the interactive host
 
-FROM ubuntu:19.10
+FROM ubuntu:20.04
 
 RUN DEBIAN_FRONTEND=noninteractive apt-get -q -y update && \
     (yes | DEBIAN_FRONTEND=noninteractive unminimize) && \
@@ -14,7 +14,7 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get -q -y update && \
         awscli \
         jq \
         s3fs \
-        golang-1.12 \
+        golang-go \
         git \
         build-essential \
         curl \
